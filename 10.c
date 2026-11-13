@@ -2,12 +2,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Enum to track the type of data stored
+
 typedef enum {
-    INT, FLOAT, CHAR, STRING
+    TYPE_EMPTY,
+    INT,
+    FLOAT,
+    CHAR,
+    STRING
 } DataType;
 
-// Union to store different types of data
+
 typedef union {
     int int_value;
     float float_value;
@@ -15,103 +19,473 @@ typedef union {
     char *string_value;
 } Data;
 
-// Struct to encapsulate the data and its type
+
 typedef struct {
     Data data;
     DataType type;
 } Container;
 
-// Function declarations
-void set_int(Container *c, int value);
-void set_float(Container *c, float value);
-void set_char(Container *c, char value);
-void set_string(Container *c, const char *value);
-int get_int(Container *c);
-float get_float(Container *c);
-char get_char(Container *c);
-char* get_string(Container *c);
-void free_container(Container *c);
 
-int main() {
-    Container c;
 
-    set_int(&c, 10);
-    printf("Int: %d\n", get_int(&c));
 
-    set_float(&c, 3.14);
-    printf("Float: %f\n", get_float(&c));
+void container_init(Container *c);
+int container_clear(Container *c);
 
-    set_char(&c, 'A');
-    printf("Char: %c\n", get_char(&c));
+int container_set_int(Container *c, int value);
+int container_set_float(Container *c, float value);
+int container_set_char(Container *c, char value);
+int container_set_string(Container *c, const char *value);
 
-    set_string(&c, "Hello, World!");
-    printf("String: %s\n", get_string(&c));
+int container_get_int(const Container *c, int *out_value);
+int container_get_float(const Container *c, float *out_value);
+int container_get_char(const Container *c, char *out_value);
+int container_get_string(const Container *c, const char **out_value);
 
-    // Free any allocated memory
-    free_container(&c);
+const char *container_type_name(const Container *c);
+int container_print(const Container *c);
+
+int container_copy(Container *destination,
+                   const Container *source);
+
+
+
+static int container_is_valid(const Container *c)
+{
+    if (c == NULL)
+        return 0;
+
+    switch (c->type) {
+        case TYPE_EMPTY:
+        case INT:
+        case FLOAT:
+        case CHAR:
+            return 1;
+
+        case STRING:
+            return c->data.string_value != NULL;
+
+        default:
+            return 0;
+    }
+}
+
+
+void container_init(Container *c)
+{
+    if (c == NULL)
+        return;
+
+    memset(&c->data, 0, sizeof(c->data));
+    c->type = TYPE_EMPTY;
+}
+
+
+
+int container_clear(Container *c)
+{
+    if (!container_is_valid(c))
+        return 0;
+
+    if (c->type == STRING) {
+        free(c->data.string_value);
+    }
+
+    memset(&c->data, 0, sizeof(c->data));
+    c->type = TYPE_EMPTY;
+
+    return 1;
+}
+
+
+
+int container_set_int(Container *c, int value)
+{
+    if (!container_clear(c))
+        return 0;
+
+    c->data.int_value = value;
+    c->type = INT;
+
+    return 1;
+}
+
+
+int container_set_float(Container *c, float value)
+{
+    if (!container_clear(c))
+        return 0;
+
+    c->data.float_value = value;
+    c->type = FLOAT;
+
+    return 1;
+}
+
+
+
+int container_set_char(Container *c, char value)
+{
+    if (!container_clear(c))
+        return 0;
+
+    c->data.char_value = value;
+    c->type = CHAR;
+
+    return 1;
+}
+
+
+
+int container_set_string(Container *c, const char *value)
+{
+    char *new_string;
+    size_t length;
+
+    if (!container_is_valid(c) || value == NULL)
+        return 0;
+
+    length = strlen(value);
+
+    new_string = malloc(length + 1);
+
+    
+    if (new_string == NULL)
+        return 0;
+
+    memcpy(new_string, value, length + 1);
+
+   
+    if (!container_clear(c)) {
+        free(new_string);
+        return 0;
+    }
+
+    c->data.string_value = new_string;
+    c->type = STRING;
+
+    return 1;
+}
+
+
+
+
+int container_get_int(const Container *c, int *out_value)
+{
+    if (!container_is_valid(c) ||
+        out_value == NULL || c->type != INT)
+        return 0;
+
+    *out_value = c->data.int_value;
+    return 1;
+}
+
+
+
+int container_get_float(const Container *c, float *out_value)
+{
+    if (!container_is_valid(c) ||
+        out_value == NULL || c->type != FLOAT)
+        return 0;
+
+    *out_value = c->data.float_value;
+    return 1;
+}
+
+
+
+int container_get_char(const Container *c, char *out_value)
+{
+    if (!container_is_valid(c) ||
+        out_value == NULL || c->type != CHAR)
+        return 0;
+
+    *out_value = c->data.char_value;
+    return 1;
+}
+
+
+
+int container_get_string(const Container *c,
+                         const char **out_value)
+{
+    if (!container_is_valid(c) ||
+        out_value == NULL || c->type != STRING)
+        return 0;
+
+    *out_value = c->data.string_value;
+    return 1;
+}
+
+
+
+const char *container_type_name(const Container *c)
+{
+    if (!container_is_valid(c))
+        return "INVALID";
+
+    switch (c->type) {
+        case TYPE_EMPTY: return "EMPTY";
+        case INT:        return "INT";
+        case FLOAT:      return "FLOAT";
+        case CHAR:       return "CHAR";
+        case STRING:     return "STRING";
+        default:         return "INVALID";
+    }
+}
+
+
+
+int container_print(const Container *c)
+{
+    if (!container_is_valid(c))
+        return 0;
+
+    switch (c->type) {
+
+        case TYPE_EMPTY:
+            printf("EMPTY");
+            break;
+
+        case INT:
+            printf("%d", c->data.int_value);
+            break;
+
+        case FLOAT:
+            printf("%f", c->data.float_value);
+            break;
+
+        case CHAR:
+            printf("%c", c->data.char_value);
+            break;
+
+        case STRING:
+            printf("%s", c->data.string_value);
+            break;
+
+        default:
+            return 0;
+    }
+
+    return 1;
+}
+
+
+
+int container_copy(Container *destination,
+                   const Container *source)
+{
+    Container temporary;
+
+    if (!container_is_valid(destination) ||
+        !container_is_valid(source))
+        return 0;
+
+    /* Handle self-copy */
+    if (destination == source)
+        return 1;
+
+    container_init(&temporary);
+
+    temporary.type = source->type;
+
+    if (source->type == STRING) {
+
+        size_t length = strlen(source->data.string_value);
+
+        temporary.data.string_value = malloc(length + 1);
+
+        if (temporary.data.string_value == NULL)
+            return 0;
+
+        memcpy(temporary.data.string_value,
+               source->data.string_value,
+               length + 1);
+
+    } else {
+        temporary.data = source->data;
+    }
+
+  
+    if (!container_clear(destination)) {
+        container_clear(&temporary);
+        return 0;
+    }
+
+    *destination = temporary;
+
+    return 1;
+}
+
+
+
+int main(void)
+{
+    Container items[6];
+    Container copied;
+
+    int int_value;
+    float float_value;
+    char char_value;
+    const char *string_value;
+
+    int i;
+
+   
+    for (i = 0; i < 6; i++) {
+        container_init(&items[i]);
+    }
+
+    container_init(&copied);
+
+    printf("===== SAFE CONTAINER LIBRARY =====\n\n");
+
+
+  
+    container_set_int(&items[0], 10);
+    container_set_float(&items[1], 3.14f);
+    container_set_char(&items[2], 'A');
+    container_set_string(&items[3], "Hello");
+    container_set_int(&items[4], 0);
+    container_set_string(&items[5], "Data");
+
+
+    /* Print container array */
+    printf("CONTAINER ARRAY:\n");
+
+    for (i = 0; i < 6; i++) {
+        printf("Index %d | Type: %-6s | Value: ",
+               i, container_type_name(&items[i]));
+
+        container_print(&items[i]);
+
+        printf("\n");
+    }
+
+
+   
+    printf("\n===== DEEP COPY TEST =====\n");
+
+    if (container_copy(&copied, &items[5])) {
+
+        printf("Original: ");
+        container_print(&items[5]);
+
+        printf("\nCopied: ");
+        container_print(&copied);
+
+        printf("\n");
+
+        container_set_string(&items[5], "Changed");
+
+        printf("After changing original:\n");
+
+        printf("Original: ");
+        container_print(&items[5]);
+
+        printf("\nCopied: ");
+        container_print(&copied);
+
+        printf("\n");
+    }
+
+
+   
+    printf("\n===== TYPE TRANSITION TEST =====\n");
+
+    container_set_string(&items[0], "First String");
+    container_set_int(&items[0], 100);
+    container_set_string(&items[0], "Second String");
+    container_set_float(&items[0], 5.5f);
+
+    printf("Final type: %s\n",
+           container_type_name(&items[0]));
+
+    printf("Final value: ");
+    container_print(&items[0]);
+    printf("\n");
+
+
+    printf("\n===== ZERO VALUE TEST =====\n");
+
+    if (container_get_int(&items[4], &int_value)) {
+        printf("Integer zero retrieved successfully: %d\n",
+               int_value);
+    }
+
+
+    printf("\n===== WRONG TYPE TEST =====\n");
+
+    if (!container_get_int(&items[2], &int_value)) {
+        printf("Correctly rejected integer getter for CHAR.\n");
+    }
+
+
+    
+    printf("\n===== EMPTY STRING TEST =====\n");
+
+    container_set_string(&items[3], "");
+
+    if (container_get_string(&items[3], &string_value)) {
+        printf("Empty string stored successfully: \"%s\"\n",
+               string_value);
+    }
+
+
+    printf("\n===== SAME POINTER TEST =====\n");
+
+    container_set_string(&items[3], "Same Pointer");
+
+    container_get_string(&items[3], &string_value);
+
+    if (container_set_string(&items[3], string_value)) {
+        printf("Same-pointer string replacement successful: ");
+        container_print(&items[3]);
+        printf("\n");
+    }
+
+
+
+    printf("\n===== SELF COPY TEST =====\n");
+
+    if (container_copy(&items[3], &items[3])) {
+        printf("Self-copy handled successfully.\n");
+    }
+
+
+ 
+    printf("\n===== EMPTY CONTAINER TEST =====\n");
+
+    container_clear(&items[3]);
+
+    printf("Type after clearing: %s\n",
+           container_type_name(&items[3]));
+
+    if (!container_get_int(&items[3], &int_value)) {
+        printf("Empty container correctly rejects getter.\n");
+    }
+
+
+
+    printf("\n===== REPEATED CLEANUP TEST =====\n");
+
+    container_clear(&items[3]);
+    container_clear(&items[3]);
+
+    printf("Repeated cleanup completed safely.\n");
+
+
+  
+    printf("\n===== FINAL CLEANUP =====\n");
+
+    for (i = 0; i < 6; i++) {
+        container_clear(&items[i]);
+    }
+
+    container_clear(&copied);
+
+    printf("All containers cleaned successfully.\n");
 
     return 0;
 }
 
-// Function definitions
-void set_int(Container *c, int value) {
-    c->data.int_value = value;
-    c->type = INT;
-}
-
-void set_float(Container *c, float value) {
-    c->data.float_value = value;
-    c->type = FLOAT;
-}
-
-void set_char(Container *c, char value) {
-    c->data.char_value = value;
-    c->type = CHAR;
-}
-
-void set_string(Container *c, const char *value) {
-    // Free previous string if any
-    if (c->type == STRING) {
-        free(c->data.string_value);
-    }
-    c->data.string_value = strdup(value);
-    c->type = STRING;
-}
-
-int get_int(Container *c) {
-    if (c->type != INT) {
-        printf("Error: Not an int\n");
-        return 0;
-    }
-    return c->data.int_value;
-}
-
-float get_float(Container *c) {
-    if (c->type != FLOAT) {
-        printf("Error: Not a float\n");
-        return 0.0;
-    }
-    return c->data.float_value;
-}
-
-char get_char(Container *c) {
-    if (c->type != CHAR) {
-        printf("Error: Not a char\n");
-        return '\0';
-    }
-    return c->data.char_value;
-}
-
-char* get_string(Container *c) {
-    if (c->type != STRING) {
-        printf("Error: Not a string\n");
-        return NULL;
-    }
-    return c->data.string_value;
-}
-
-void free_container(Container *c) {
-    if (c->type == STRING) {
-        free(c->data.string_value);
-    }
-}
+*/
